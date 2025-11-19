@@ -1,0 +1,1471 @@
+<!DOCTYPE html>
+<html lang="en">
+<head>
+    <meta charset="UTF-8">
+    <meta name="viewport" content="width=device-width, initial-scale=1.0">
+    <title>WRONGSIDE STAFF TERMINAL v6.4</title>
+    <script src="https://cdn.tailwindcss.com"></script>
+    <link href="https://fonts.googleapis.com/css2?family=VT323&family=Share+Tech+Mono&display=swap" rel="stylesheet">
+    <script src="https://cdnjs.cloudflare.com/ajax/libs/jspdf/2.5.1/jspdf.umd.min.js"></script>
+    <script src="https://cdnjs.cloudflare.com/ajax/libs/html2canvas/1.4.1/html2canvas.min.js"></script>
+    <style>
+        :root {
+            --terminal-white: #ffffff;
+            --terminal-gray: #808080;
+            --terminal-dim-gray: #404040;
+            --terminal-dark-gray: #1a1a1a;
+            --terminal-bg: #000000;
+            --terminal-yellow: #ffff00;
+            --terminal-magenta: #ff00ff;
+            --terminal-light-blue: #00ccff;
+            --terminal-pink: #ff00cc;
+            --terminal-purple: #9900ff;
+            --terminal-cyan: #00ffff;
+            --terminal-red: #ff0000;
+        }
+        
+        * {
+            box-sizing: border-box;
+        }
+        
+        body {
+            font-family: 'Share Tech Mono', monospace;
+            background-color: var(--terminal-bg);
+            color: var(--terminal-white);
+            overflow-x: hidden;
+            background-image: 
+                repeating-linear-gradient(
+                    0deg,
+                    rgba(255, 255, 255, 0.02),
+                    rgba(255, 255, 255, 0.02) 1px,
+                    transparent 1px,
+                    transparent 2px
+                );
+        }
+        
+        /* ASCII Splash Screen */
+        .ascii-splash {
+            position: fixed;
+            top: 0;
+            left: 0;
+            width: 100%;
+            height: 100%;
+            background-color: var(--terminal-bg);
+            display: flex;
+            flex-direction: column;
+            justify-content: center;
+            align-items: center;
+            z-index: 9999;
+            transition: opacity 1s ease-out;
+        }
+        
+        .ascii-splash.fade-out {
+            opacity: 0;
+            pointer-events: none;
+        }
+        
+        .ascii-art {
+            font-family: 'VT323', monospace;
+            font-size: 12px;
+            line-height: 1;
+            white-space: pre;
+            color: var(--terminal-white);
+            text-align: center;
+            animation: glitch 2s infinite;
+        }
+        
+        @keyframes glitch {
+            0%, 100% { text-shadow: 0 0 5px var(--terminal-white); }
+            25% { text-shadow: -2px 0 var(--terminal-red), 2px 0 var(--terminal-cyan); }
+            50% { text-shadow: 2px 0 var(--terminal-red), -2px 0 var(--terminal-cyan); }
+            75% { text-shadow: 0 0 10px var(--terminal-white); }
+        }
+        
+        .loading-text {
+            margin-top: 20px;
+            font-family: 'Share Tech Mono', monospace;
+            font-size: 14px;
+            color: var(--terminal-gray);
+            animation: blink 1s infinite;
+        }
+        
+        @keyframes blink {
+            0%, 50% { opacity: 1; }
+            51%, 100% { opacity: 0; }
+        }
+        
+        .progress-bar {
+            width: 300px;
+            height: 20px;
+            border: 1px solid var(--terminal-gray);
+            margin-top: 20px;
+            position: relative;
+            overflow: hidden;
+        }
+        
+        .progress-fill {
+            height: 100%;
+            background-color: var(--terminal-white);
+            width: 0%;
+            animation: load 3s ease-out forwards;
+        }
+        
+        @keyframes load {
+            0% { width: 0%; }
+            100% { width: 100%; }
+        }
+        
+        .terminal-screen {
+            position: relative;
+            background-color: var(--terminal-bg);
+            min-height: 100vh;
+            opacity: 0;
+            transition: opacity 1s ease-in;
+        }
+        
+        .terminal-screen.visible {
+            opacity: 1;
+        }
+        
+        .terminal-screen::before {
+            content: " ";
+            display: block;
+            position: fixed;
+            top: 0;
+            left: 0;
+            bottom: 0;
+            right: 0;
+            background: 
+                repeating-linear-gradient(
+                    0deg,
+                    rgba(0, 0, 0, 0.15),
+                    rgba(0, 0, 0, 0.15) 1px,
+                    transparent 1px,
+                    transparent 2px
+                );
+            z-index: 1;
+            pointer-events: none;
+        }
+        
+        .terminal-screen::after {
+            content: " ";
+            display: block;
+            position: fixed;
+            top: 0;
+            left: 0;
+            bottom: 0;
+            right: 0;
+            background: radial-gradient(ellipse at center, transparent 0%, rgba(0, 0, 0, 0.4) 100%);
+            z-index: 2;
+            pointer-events: none;
+        }
+        
+        .container {
+            position: relative;
+            z-index: 10;
+            max-width: 1400px;
+            margin: 0 auto;
+            padding: 20px;
+        }
+        
+        .header {
+            border: 1px solid var(--terminal-gray);
+            background-color: rgba(0, 0, 0, 0.8);
+            padding: 15px;
+            margin-bottom: 20px;
+            text-align: center;
+        }
+        
+        .title {
+            font-family: 'VT323', monospace;
+            font-size: 28px;
+            letter-spacing: 3px;
+            text-transform: uppercase;
+            margin: 0;
+            color: var(--terminal-gray);
+            text-shadow: 0 0 5px var(--terminal-gray);
+        }
+        
+        .status-bar {
+            display: flex;
+            justify-content: space-between;
+            align-items: center;
+            margin-top: 10px;
+            padding-top: 10px;
+            border-top: 1px solid var(--terminal-gray);
+            font-size: 14px;
+            color: var(--terminal-gray);
+        }
+        
+        .status-indicator {
+            display: inline-block;
+            width: 8px;
+            height: 8px;
+            background-color: var(--terminal-white);
+            margin-right: 8px;
+            animation: pulse 2s infinite;
+        }
+        
+        @keyframes pulse {
+            0%, 100% { opacity: 1; }
+            50% { opacity: 0.5; }
+        }
+        
+        .nav-bar {
+            border: 1px solid var(--terminal-gray);
+            background-color: rgba(0, 0, 0, 0.8);
+            padding: 10px;
+            margin-bottom: 20px;
+            display: flex;
+            flex-wrap: wrap;
+            gap: 5px;
+        }
+        
+        .nav-button {
+            background-color: transparent;
+            border: 1px solid var(--terminal-gray);
+            color: var(--terminal-white);
+            padding: 8px 15px;
+            font-family: 'Share Tech Mono', monospace;
+            font-size: 14px;
+            text-transform: uppercase;
+            cursor: pointer;
+            transition: all 0.2s;
+        }
+        
+        .nav-button:hover {
+            background-color: var(--terminal-gray);
+            color: var(--terminal-bg);
+            box-shadow: 0 0 5px var(--terminal-white);
+        }
+        
+        .nav-button.active {
+            background-color: var(--terminal-white);
+            color: var(--terminal-bg);
+        }
+        
+        .main-content {
+            border: 1px solid var(--terminal-gray);
+            background-color: rgba(0, 0, 0, 0.8);
+            padding: 20px;
+            min-height: 500px;
+        }
+        
+        .section {
+            display: none;
+        }
+        
+        .section.active {
+            display: block;
+        }
+        
+        .section-title {
+            font-family: 'VT323', monospace;
+            font-size: 24px;
+            text-transform: uppercase;
+            margin-bottom: 20px;
+            padding-bottom: 10px;
+            border-bottom: 1px solid var(--terminal-gray);
+            color: var(--terminal-gray);
+        }
+        
+        .data-grid {
+            display: grid;
+            grid-template-columns: repeat(auto-fit, minmax(200px, 1fr));
+            gap: 15px;
+            margin-bottom: 30px;
+        }
+        
+        .data-card {
+            border: 1px solid var(--terminal-gray);
+            background-color: rgba(0, 0, 0, 0.5);
+            padding: 15px;
+            text-align: center;
+        }
+        
+        .data-card h3 {
+            font-size: 14px;
+            text-transform: uppercase;
+            margin-bottom: 10px;
+            color: var(--terminal-gray);
+        }
+        
+        .data-card .value {
+            font-size: 32px;
+            font-weight: bold;
+            color: var(--terminal-white);
+        }
+        
+        .terminal-table {
+            width: 100%;
+            border-collapse: collapse;
+            margin-top: 20px;
+        }
+        
+        .terminal-table th,
+        .terminal-table td {
+            border: 1px solid var(--terminal-gray);
+            padding: 8px 12px;
+            text-align: left;
+            font-size: 14px;
+        }
+        
+        .terminal-table th {
+            background-color: rgba(255, 255, 255, 0.1);
+            text-transform: uppercase;
+            color: var(--terminal-gray);
+        }
+        
+        .terminal-table tr:nth-child(even) {
+            background-color: rgba(255, 255, 255, 0.02);
+        }
+        
+        .action-button {
+            background-color: transparent;
+            border: 1px solid var(--terminal-gray);
+            color: var(--terminal-white);
+            padding: 4px 8px;
+            margin: 2px;
+            font-family: 'Share Tech Mono', monospace;
+            font-size: 12px;
+            text-transform: uppercase;
+            cursor: pointer;
+            transition: all 0.2s;
+        }
+        
+        .action-button:hover {
+            background-color: var(--terminal-gray);
+            color: var(--terminal-bg);
+        }
+        
+        .table-grid {
+            display: grid;
+            grid-template-columns: repeat(auto-fill, minmax(150px, 1fr));
+            gap: 10px;
+            margin-top: 20px;
+        }
+        
+        .table-card {
+            border: 1px solid var(--terminal-gray);
+            background-color: rgba(0, 0, 0, 0.5);
+            padding: 15px;
+            text-align: center;
+            transition: all 0.2s;
+        }
+        
+        .table-card:hover {
+            border-color: var(--terminal-white);
+            box-shadow: 0 0 5px var(--terminal-white);
+        }
+        
+        .table-card.assigned {
+            background-color: rgba(255, 255, 255, 0.1);
+            border-color: var(--terminal-white);
+        }
+        
+        .table-card h4 {
+            font-size: 18px;
+            margin-bottom: 10px;
+            color: var(--terminal-gray);
+        }
+        
+        .table-card p {
+            font-size: 14px;
+            margin-bottom: 10px;
+            color: var(--terminal-white);
+        }
+        
+        .form-group {
+            margin-bottom: 15px;
+        }
+        
+        .form-group label {
+            display: block;
+            margin-bottom: 5px;
+            font-size: 14px;
+            text-transform: uppercase;
+            color: var(--terminal-gray);
+        }
+        
+        .form-input,
+        .form-select {
+            width: 100%;
+            background-color: rgba(0, 0, 0, 0.8);
+            border: 1px solid var(--terminal-gray);
+            color: var(--terminal-white);
+            padding: 8px;
+            font-family: 'Share Tech Mono', monospace;
+            font-size: 14px;
+        }
+        
+        .form-input:focus,
+        .form-select:focus {
+            outline: none;
+            border-color: var(--terminal-white);
+            box-shadow: 0 0 3px var(--terminal-white);
+        }
+        
+        .modal {
+            display: none;
+            position: fixed;
+            z-index: 1000;
+            left: 0;
+            top: 0;
+            width: 100%;
+            height: 100%;
+            background-color: rgba(0, 0, 0, 0.9);
+        }
+        
+        .modal-content {
+            background-color: var(--terminal-bg);
+            border: 1px solid var(--terminal-white);
+            padding: 20px;
+            margin: 10% auto;
+            width: 90%;
+            max-width: 500px;
+        }
+        
+        .modal-header {
+            font-family: 'VT323', monospace;
+            font-size: 20px;
+            text-transform: uppercase;
+            margin-bottom: 20px;
+            padding-bottom: 10px;
+            border-bottom: 1px solid var(--terminal-gray);
+            color: var(--terminal-gray);
+        }
+        
+        .modal-close {
+            float: right;
+            font-size: 20px;
+            cursor: pointer;
+            color: var(--terminal-red);
+        }
+        
+        .modal-close:hover {
+            color: var(--terminal-white);
+        }
+        
+        .form-buttons {
+            display: flex;
+            justify-content: flex-end;
+            gap: 10px;
+            margin-top: 20px;
+        }
+        
+        .submit-button {
+            background-color: var(--terminal-white);
+            color: var(--terminal-bg);
+            border: none;
+            padding: 8px 15px;
+            font-family: 'Share Tech Mono', monospace;
+            font-size: 14px;
+            text-transform: uppercase;
+            cursor: pointer;
+        }
+        
+        .cancel-button {
+            background-color: transparent;
+            color: var(--terminal-white);
+            border: 1px solid var(--terminal-gray);
+            padding: 8px 15px;
+            font-family: 'Share Tech Mono', monospace;
+            font-size: 14px;
+            text-transform: uppercase;
+            cursor: pointer;
+        }
+        
+        .cancel-button:hover {
+            border-color: var(--terminal-white);
+        }
+        
+        .role-host { color: var(--terminal-yellow); }
+        .role-manager { color: var(--terminal-magenta); }
+        .role-prep1 { color: var(--terminal-light-blue); }
+        .role-prep2 { color: var(--terminal-pink); }
+        .role-plating { color: var(--terminal-purple); }
+        .role-dishwasher { color: var(--terminal-gray); }
+        .role-cashier { color: var(--terminal-cyan); }
+        
+        .notification {
+            position: fixed;
+            top: 20px;
+            right: 20px;
+            background-color: var(--terminal-bg);
+            border: 1px solid var(--terminal-white);
+            padding: 15px;
+            z-index: 2000;
+            animation: slideIn 0.3s;
+        }
+        
+        @keyframes slideIn {
+            from { transform: translateX(100%); }
+            to { transform: translateX(0); }
+        }
+        
+        .scroll-container {
+            max-height: 400px;
+            overflow-y: auto;
+            scrollbar-width: thin;
+            scrollbar-color: var(--terminal-gray) var(--terminal-bg);
+        }
+        
+        .scroll-container::-webkit-scrollbar {
+            width: 8px;
+        }
+        
+        .scroll-container::-webkit-scrollbar-track {
+            background: var(--terminal-bg);
+        }
+        
+        .scroll-container::-webkit-scrollbar-thumb {
+            background: var(--terminal-gray);
+        }
+        
+        .scroll-container::-webkit-scrollbar-thumb:hover {
+            background: var(--terminal-white);
+        }
+        
+        .blink {
+            animation: blink 1s infinite;
+        }
+        
+        .cursor {
+            display: inline-block;
+            width: 8px;
+            height: 16px;
+            background-color: var(--terminal-white);
+            margin-left: 2px;
+            animation: blink 1s infinite;
+        }
+        
+        .export-section {
+            margin-top: 20px;
+        }
+        
+        .export-buttons {
+            display: flex;
+            gap: 10px;
+            flex-wrap: wrap;
+        }
+        
+        @media (max-width: 768px) {
+            .title {
+                font-size: 20px;
+            }
+            
+            .nav-button {
+                font-size: 12px;
+                padding: 6px 10px;
+            }
+            
+            .data-grid {
+                grid-template-columns: 1fr;
+            }
+            
+            .table-grid {
+                grid-template-columns: repeat(auto-fill, minmax(120px, 1fr));
+            }
+            
+            .ascii-art {
+                font-size: 8px;
+            }
+        }
+    </style>
+</head>
+<body>
+    <!-- ASCII Splash Screen -->
+    <div id="asciiSplash" class="ascii-splash">
+        <pre class="ascii-art">
+ ██▓    █    ██  ██▀███   ██▒   █▓ ▓█████  ██▀███   ██▒   █▓ ██▓    ▓█████▄ 
+▓██▒    ██  ▓██▒▓██ ▒ ██▒▓██░   █▒ ▓█   ▀ ▓██ ▒ ██▒▓██░   █▒▓██▒    ▒██▀ ██▌
+▒██░   ▓██  ▒██░▓██ ░▄█ ▒ ▓██  █▒░ ▒███   ▓██ ░▄█ ▒ ▓██  █▒░▒██░    ░██   █▌
+▒██░   ▓▓█  ░██░▒██▀▀█▄    ▒██ █░░ ▒▓█  ▄ ▒██▀▀█▄    ▒██ █░░▒██░    ░▓█▄   ▌
+░██████▒▒▓█████▓ ░██▓ ▒██▒   ▒▀█░  ░▒████▒░██▓ ▒██▒   ▒▀█░  ░██████▒░▒████▓ 
+░ ▒░▓  ░░▒▓▒ ▒ ▒ ░ ▒▓ ░▒▓░    ░ ▐░  ░░ ▒░ ░░ ▒▓ ░▒▓░    ░ ▐░  ░ ▒░▓  ░ ▒▒▓  ▒ 
+░ ░ ▒  ░░░▒░ ░ ░ ░▒ ░ ▒░  ░ ░░░   ░ ░  ░  ░▒ ░ ▒░  ░ ░░░   ░ ░ ▒  ░ ░ ▒  ▒ 
+  ░ ░    ░░░ ░ ░ ░░   ░     ░░     ░      ░░   ░     ░░     ░ ░    ░ ░  ░ 
+    ░  ░   ░     ░  ░        ░     ░  ░   ░     ░        ░     ░  ░   ░    
+                                                                            
+    ███▄ ▄███▓ ▄▄▄       ██▓    ▄▄▄█████▓ ██▀███   ██▓    ▄▄▄█████▓ ██▀███  
+   ▓██▒▀█▀ ██▒▒████▄    ▓██▒    ▓  ██▒ ▓▒▓██ ▒ ██▒▓██▒    ▓  ██▒ ▓▒▓██ ▒ ██▒
+   ▓██    ▓██░▒██  ▀█▄  ▒██░    ▒ ▓██░ ▒░▓██ ░▄█ ▒▒██░    ▒ ▓██░ ▒░▓██ ░▄█ ▒
+   ▒██    ▒██ ░██▄▄▄▄██ ▒██░    ░ ▓██▓ ░ ▒██▀▀█▄  ▒██░    ░ ▓██▓ ░ ▒██▀▀█▄  
+   ▒██▒   ░██▒ ▓█   ▓██▒░██████▒  ▒██▒ ░ ░██▓ ▒██▒░██████▒  ▒██▒ ░ ░██▓ ▒██▒
+   ░ ▒░   ░  ░▒▒   ▓▒█░░ ▒░▓  ░  ▒ ░░   ░ ▒▓ ░▒▓░░ ▒░▓  ░  ▒ ░░   ░ ▒▓ ░▒▓░
+   ░  ░      ░ ▒   ▒▒ ░░ ░ ▒  ░    ░      ░▒ ░ ▒░░ ░ ▒  ░    ░      ░▒ ░ ▒░
+   ░      ░    ░   ▒     ░ ░     ░        ░░   ░   ░ ░     ░        ░░   ░ 
+            ░        ░  ░    ░  ░            ░       ░  ░            ░       
+                                                                            
+██▓    ▄▄▄█████▓ ██▀███   ██▓     ██▓ ▄████▄   ██▀███   ▄▄▄█████▓ ██▀███  
+▓██▒    ▓  ██▒ ▓▒▓██ ▒ ██▒▓██▒    ▓██▒▒██▀ ▀█  ▓██ ▒ ██▒▓  ██▒ ▓▒▓██ ▒ ██▒
+▒██░    ▒ ▓██░ ▒░▓██ ░▄█ ▒▒██░    ▒██░▒▓█    ▄ ▓██ ░▄█ ▒▒ ▓██░ ▒░▒██  ▀█▄  ▒██░    
+▒██░    ░ ▓██▓ ░ ▒██▀▀█▄  ▒██░    ░██░▒▓▓▄ ▄██▒▒██▀▀█▄  ░ ▓██▓ ░ ░██▄▄▄▄██ ▒██░    
+░██████▒░▒██▒ ░ ░██▓ ▒██▒░██████▒░██░▒ ▓███▀ ░░██▓ ▒██▒  ▒██▒ ░  ▓█   ▓██▒░██████▒
+░ ▒░▓  ░░ ▒ ░░   ░ ▒▓ ░▒▓░░ ▒░▓  ░░▓  ░ ░▒ ▒  ░░ ▒▓ ░▒▓░  ▒ ░░    ▒▒   ▓▒█░░ ▒░▓  ░
+░ ░ ▒  ░  ░  ░     ░▒ ░ ▒░░ ░ ▒  ░ ▒ ░  ░  ▒     ░▒ ░ ▒░    ░      ▒   ▒▒ ░░ ░ ▒  ░
+  ░ ░     ░        ░░   ░   ░ ░    ▒ ░  ░          ░░   ░   ░        ░   ▒     ░ ░   
+    ░  ░    ░  ░   ░     ░   ░  ░   ░    ░ ░       ░       ░  ░          ░  ░    ░  ░
+        </pre>
+        <div class="loading-text">INITIALIZING TERMINAL SYSTEM...</div>
+        <div class="progress-bar">
+            <div class="progress-fill"></div>
+        </div>
+    </div>
+    
+    <div class="terminal-screen" id="mainTerminal">
+        <div class="container">
+            <!-- Header -->
+            <header class="header">
+                <h1 class="title">WRONGSIDE STAFF TERMINAL v6.4</h1>
+                <div class="status-bar">
+                    <div>
+                        <span class="status-indicator"></span>
+                        <span>SYSTEM ONLINE</span>
+                    </div>
+                    <div id="systemTime">00:00:00</div>
+                </div>
+                <div style="margin-top: 5px; font-size: 12px; color: var(--terminal-gray);">
+                    created by dev-Jhon d cap
+                </div>
+            </header>
+            
+            <!-- Navigation -->
+            <nav class="nav-bar">
+                <button class="nav-button active" data-section="dashboard">DASHBOARD</button>
+                <button class="nav-button" data-section="staff">STAFF MGMT</button>
+                <button class="nav-button" data-section="tables">TABLES</button>
+                <button class="nav-button" data-section="schedule">SCHEDULE</button>
+                <button class="nav-button" data-section="tasks">TASKS</button>
+                <button class="nav-button" data-section="kitchen">KITCHEN</button>
+                <button class="nav-button" data-section="export">EXPORT</button>
+            </nav>
+            
+            <!-- Main Content -->
+            <main class="main-content">
+                <!-- Dashboard Section -->
+                <section id="dashboard" class="section active">
+                    <h2 class="section-title">SYSTEM OVERVIEW</h2>
+                    <div class="data-grid">
+                        <div class="data-card">
+                            <h3>Active Staff</h3>
+                            <div class="value" id="dashboardStaffCount">0</div>
+                        </div>
+                        <div class="data-card">
+                            <h3>Tables Assigned</h3>
+                            <div class="value" id="dashboardTablesAssigned">0/12</div>
+                        </div>
+                        <div class="data-card">
+                            <h3>Shift Status</h3>
+                            <div class="value" id="dashboardShiftStatus">OFFLINE</div>
+                        </div>
+                    </div>
+                    
+                    <h3 style="margin-top: 30px; margin-bottom: 10px; font-size: 16px; color: var(--terminal-gray);">HOST ASSIGNMENTS</h3>
+                    <div class="scroll-container">
+                        <table class="terminal-table">
+                            <thead>
+                                <tr>
+                                    <th>HOST</th>
+                                    <th>ASSIGNED TABLES</th>
+                                </tr>
+                            </thead>
+                            <tbody id="dashboardHostAssignmentsBody">
+                                <tr>
+                                    <td colspan="2" style="text-align: center;">NO DATA</td>
+                                </tr>
+                            </tbody>
+                        </table>
+                    </div>
+                </section>
+                
+                <!-- Staff Management Section -->
+                <section id="staff" class="section">
+                    <h2 class="section-title">STAFF MANAGEMENT</h2>
+                    <button class="action-button" id="addStaffBtn" style="margin-bottom: 15px;">+ ADD STAFF</button>
+                    <div class="scroll-container">
+                        <table class="terminal-table">
+                            <thead>
+                                <tr>
+                                    <th>ID</th>
+                                    <th>NAME</th>
+                                    <th>ROLE</th>
+                                    <th>SHIFT</th>
+                                    <th>ACTIONS</th>
+                                </tr>
+                            </thead>
+                            <tbody id="staffTableBody">
+                                <tr>
+                                    <td colspan="5" style="text-align: center;">NO STAFF RECORDS</td>
+                                </tr>
+                            </tbody>
+                        </table>
+                    </div>
+                </section>
+                
+                <!-- Tables Section -->
+                <section id="tables" class="section">
+                    <h2 class="section-title">TABLE ASSIGNMENT SYSTEM</h2>
+                    <div class="table-grid" id="tablesGrid">
+                        <!-- Tables will be generated dynamically -->
+                    </div>
+                </section>
+                
+                <!-- Schedule Section -->
+                <section id="schedule" class="section">
+                    <h2 class="section-title">DAILY SCHEDULE</h2>
+                    <button class="action-button" id="generateScheduleBtn" style="margin-bottom: 15px;">GENERATE SCHEDULE</button>
+                    <div class="scroll-container">
+                        <table class="terminal-table">
+                            <thead>
+                                <tr>
+                                    <th>TIME</th>
+                                    <th>MGMT</th>
+                                    <th>T1-4</th>
+                                    <th>T5-8</th>
+                                    <th>T9-12</th>
+                                    <th>PREP</th>
+                                    <th>PREP0</th>
+                                    <th>PLATE</th>
+                                    <th>DISH</th>
+                                    <th>CASH</th>
+                                </tr>
+                            </thead>
+                            <tbody id="scheduleTableBody">
+                                <tr>
+                                    <td colspan="10" style="text-align: center;">NO SCHEDULE DATA</td>
+                                </tr>
+                            </tbody>
+                        </table>
+                    </div>
+                </section>
+                
+                <!-- Tasks Section -->
+                <section id="tasks" class="section">
+                    <h2 class="section-title">TASK ASSIGNMENT</h2>
+                    <div style="border: 1px solid var(--terminal-gray); padding: 15px; margin-bottom: 20px;">
+                        <h3 style="margin-bottom: 15px; font-size: 16px; color: var(--terminal-gray);">11:00 GREETING DUTY</h3>
+                        <div class="form-group">
+                            <label>SELECT HOST:</label>
+                            <select id="greetingHostSelect" class="form-select">
+                                <option value="">-- SELECT --</option>
+                            </select>
+                        </div>
+                        <button class="action-button" id="assignGreetingBtn">ASSIGN TASK</button>
+                    </div>
+                    
+                    <div style="border: 1px solid var(--terminal-gray); padding: 15px;">
+                        <h3 style="margin-bottom: 10px; font-size: 16px; color: var(--terminal-gray);">CURRENT ASSIGNMENT</h3>
+                        <div id="currentGreetingAssignment">
+                            <p>NO TASK ASSIGNED</p>
+                        </div>
+                    </div>
+                </section>
+                
+                <!-- Kitchen Section -->
+                <section id="kitchen" class="section">
+                    <h2 class="section-title">KITCHEN STATIONS</h2>
+                    <div class="table-grid" id="kitchenStationsGrid">
+                        <!-- Kitchen stations will be generated dynamically -->
+                    </div>
+                </section>
+                
+                <!-- Export Section -->
+                <section id="export" class="section">
+                    <h2 class="section-title">DATA EXPORT</h2>
+                    <div class="export-section">
+                        <div class="export-buttons">
+                            <button class="action-button" id="exportPdfBtn">EXPORT PDF</button>
+                            <button class="action-button" id="exportJsonBtn">EXPORT JSON</button>
+                            <button class="action-button" id="importJsonBtn">IMPORT JSON</button>
+                            <input type="file" id="importJsonFile" accept=".json" style="display: none;">
+                        </div>
+                    </div>
+                </section>
+            </main>
+        </div>
+    </div>
+    
+    <!-- Staff Modal -->
+    <div id="staffModal" class="modal">
+        <div class="modal-content">
+            <span class="modal-close" onclick="closeModal('staffModal')">&times;</span>
+            <h2 class="modal-header" id="staffModalTitle">ADD STAFF</h2>
+            <form id="staffForm">
+                <div class="form-group">
+                    <label>NAME:</label>
+                    <input type="text" id="staffName" class="form-input" required>
+                </div>
+                <div class="form-group">
+                    <label>ROLE:</label>
+                    <select id="staffRole" class="form-select" required>
+                        <option value="">-- SELECT ROLE --</option>
+                        <option value="Host">Host</option>
+                        <option value="Manager">Manager</option>
+                        <option value="Management Prep">Management Prep</option>
+                        <option value="Prep 0">Prep 0</option>
+                        <option value="Prep 1">Prep 1</option>
+                        <option value="Prep 2">Prep 2</option>
+                        <option value="Plating">Plating</option>
+                        <option value="Dishwasher">Dishwasher</option>
+                        <option value="Cashier">Cashier</option>
+                    </select>
+                </div>
+                <div class="form-group">
+                    <label>SHIFT:</label>
+                    <input type="text" id="staffShift" class="form-input" value="11:00 - 23:00" readonly>
+                </div>
+                <div class="form-buttons">
+                    <button type="button" class="cancel-button" onclick="closeModal('staffModal')">CANCEL</button>
+                    <button type="submit" class="submit-button">SAVE</button>
+                </div>
+            </form>
+        </div>
+    </div>
+    
+    <!-- Table Modal -->
+    <div id="tableModal" class="modal">
+        <div class="modal-content">
+            <span class="modal-close" onclick="closeModal('tableModal')">&times;</span>
+            <h2 class="modal-header">ASSIGN TABLE</h2>
+            <form id="tableForm">
+                <div class="form-group">
+                    <label>TABLE ID:</label>
+                    <input type="text" id="tableId" class="form-input" readonly>
+                </div>
+                <div class="form-group">
+                    <label>SELECT HOST:</label>
+                    <select id="tableHost" class="form-select" required>
+                        <option value="">-- SELECT HOST --</option>
+                    </select>
+                </div>
+                <div class="form-buttons">
+                    <button type="button" class="cancel-button" onclick="closeModal('tableModal')">CANCEL</button>
+                    <button type="submit" class="submit-button">ASSIGN</button>
+                </div>
+            </form>
+        </div>
+    </div>
+    
+    <!-- Kitchen Modal -->
+    <div id="kitchenModal" class="modal">
+        <div class="modal-content">
+            <span class="modal-close" onclick="closeModal('kitchenModal')">&times;</span>
+            <h2 class="modal-header">ASSIGN STATION</h2>
+            <form id="kitchenForm">
+                <div class="form-group">
+                    <label>STATION:</label>
+                    <input type="text" id="kitchenStationName" class="form-input" readonly>
+                </div>
+                <div class="form-group">
+                    <label>SELECT STAFF:</label>
+                    <select id="kitchenStaff" class="form-select" required>
+                        <option value="">-- SELECT STAFF --</option>
+                    </select>
+                </div>
+                <div class="form-buttons">
+                    <button type="button" class="cancel-button" onclick="closeModal('kitchenModal')">CANCEL</button>
+                    <button type="submit" class="submit-button">ASSIGN</button>
+                </div>
+            </form>
+        </div>
+    </div>
+    
+    <script>
+        // ASCII Splash Screen Control
+        window.addEventListener('load', function() {
+            const splash = document.getElementById('asciiSplash');
+            const mainTerminal = document.getElementById('mainTerminal');
+            
+            // Hide splash screen after 3.5 seconds
+            setTimeout(function() {
+                splash.classList.add('fade-out');
+                setTimeout(function() {
+                    splash.style.display = 'none';
+                    mainTerminal.classList.add('visible');
+                }, 1000);
+            }, 3500);
+        });
+        
+        // Data Structure
+        let appData = {
+            staff: [],
+            tables: [],
+            kitchenStations: [
+                { id: 1, name: "Prep 1", assignedTo: null },
+                { id: 2, name: "Prep 2", assignedTo: null },
+                { id: 3, name: "Plating", assignedTo: null },
+                { id: 4, name: "Dishwasher", assignedTo: null }
+            ],
+            schedule: {},
+            greetingTask: null
+        };
+        
+        // Initialize
+        document.addEventListener('DOMContentLoaded', function() {
+            loadData();
+            initializeTables();
+            initializeKitchenStations();
+            updateSystemTime();
+            setInterval(updateSystemTime, 1000);
+            updateDashboard();
+            updateStaffTable();
+            updateScheduleTable();
+            updateGreetingTask();
+            updateGreetingHostSelect();
+            
+            // Navigation
+            document.querySelectorAll('[data-section]').forEach(button => {
+                button.addEventListener('click', function() {
+                    showSection(this.getAttribute('data-section'));
+                });
+            });
+            
+            // Staff management
+            document.getElementById('addStaffBtn').addEventListener('click', () => openStaffModal());
+            document.getElementById('staffForm').addEventListener('submit', saveStaff);
+            
+            // Schedule
+            document.getElementById('generateScheduleBtn').addEventListener('click', autoGenerateSchedule);
+            
+            // Tasks
+            document.getElementById('assignGreetingBtn').addEventListener('click', assignGreetingTask);
+            
+            // Export
+            document.getElementById('exportPdfBtn').addEventListener('click', exportToPdf);
+            document.getElementById('exportJsonBtn').addEventListener('click', exportToJson);
+            document.getElementById('importJsonBtn').addEventListener('click', () => {
+                document.getElementById('importJsonFile').click();
+            });
+            document.getElementById('importJsonFile').addEventListener('change', (e) => {
+                importFromJson(e.target.files[0]);
+            });
+            
+            // Forms
+            document.getElementById('tableForm').addEventListener('submit', assignTable);
+            document.getElementById('kitchenForm').addEventListener('submit', assignKitchenStation);
+        });
+        
+        // System time
+        function updateSystemTime() {
+            const now = new Date();
+            document.getElementById('systemTime').textContent = now.toLocaleTimeString();
+        }
+        
+        // Section navigation
+        function showSection(sectionId) {
+            document.querySelectorAll('.section').forEach(s => s.classList.remove('active'));
+            document.querySelectorAll('.nav-button').forEach(b => b.classList.remove('active'));
+            
+            document.getElementById(sectionId).classList.add('active');
+            document.querySelector(`[data-section="${sectionId}"]`).classList.add('active');
+        }
+        
+        // Initialize tables
+        function initializeTables() {
+            const grid = document.getElementById('tablesGrid');
+            grid.innerHTML = '';
+            
+            for (let i = 1; i <= 12; i++) {
+                let table = appData.tables.find(t => t.id === i);
+                if (!table) {
+                    table = { id: i, host: null };
+                    appData.tables.push(table);
+                }
+                
+                const card = document.createElement('div');
+                card.className = `table-card ${table.host ? 'assigned' : ''}`;
+                card.innerHTML = `
+                    <h4>TABLE ${i}</h4>
+                    <p>${table.host || 'UNASSIGNED'}</p>
+                    <div>
+                        <button class="action-button" onclick="openTableModal(${i})">ASSIGN</button>
+                        ${table.host ? `<button class="action-button" onclick="clearTable(${i})">CLEAR</button>` : ''}
+                    </div>
+                `;
+                grid.appendChild(card);
+            }
+        }
+        
+        // Initialize kitchen stations
+        function initializeKitchenStations() {
+            const grid = document.getElementById('kitchenStationsGrid');
+            grid.innerHTML = '';
+            
+            appData.kitchenStations.forEach(station => {
+                const card = document.createElement('div');
+                card.className = `table-card ${station.assignedTo ? 'assigned' : ''}`;
+                card.innerHTML = `
+                    <h4>${station.name}</h4>
+                    <p>${station.assignedTo || 'UNASSIGNED'}</p>
+                    <div>
+                        <button class="action-button" onclick="openKitchenModal(${station.id})">ASSIGN</button>
+                        ${station.assignedTo ? `<button class="action-button" onclick="clearKitchenStation(${station.id})">CLEAR</button>` : ''}
+                    </div>
+                `;
+                grid.appendChild(card);
+            });
+        }
+        
+        // Staff modal
+        function openStaffModal(staffId = null) {
+            const modal = document.getElementById('staffModal');
+            const title = document.getElementById('staffModalTitle');
+            const nameInput = document.getElementById('staffName');
+            const roleSelect = document.getElementById('staffRole');
+            
+            if (staffId) {
+                const staff = appData.staff.find(s => s.id === staffId);
+                title.textContent = 'EDIT STAFF';
+                nameInput.value = staff.name;
+                roleSelect.value = staff.role;
+                nameInput.dataset.staffId = staffId;
+            } else {
+                title.textContent = 'ADD STAFF';
+                nameInput.value = '';
+                roleSelect.value = '';
+                delete nameInput.dataset.staffId;
+            }
+            
+            modal.style.display = 'block';
+        }
+        
+        // Save staff
+        function saveStaff(e) {
+            e.preventDefault();
+            const nameInput = document.getElementById('staffName');
+            const roleSelect = document.getElementById('staffRole');
+            const staffId = nameInput.dataset.staffId;
+            
+            if (staffId) {
+                const staff = appData.staff.find(s => s.id === parseInt(staffId));
+                staff.name = nameInput.value.toUpperCase();
+                staff.role = roleSelect.value;
+            } else {
+                const newStaff = {
+                    id: appData.staff.length > 0 ? Math.max(...appData.staff.map(s => s.id)) + 1 : 1,
+                    name: nameInput.value.toUpperCase(),
+                    role: roleSelect.value,
+                    shift: "11:00 - 23:00"
+                };
+                appData.staff.push(newStaff);
+            }
+            
+            saveData();
+            updateStaffTable();
+            updateGreetingHostSelect();
+            updateDashboard();
+            closeModal('staffModal');
+            showNotification('STAFF SAVED');
+        }
+        
+        // Update staff table
+        function updateStaffTable() {
+            const tbody = document.getElementById('staffTableBody');
+            
+            if (appData.staff.length === 0) {
+                tbody.innerHTML = '<tr><td colspan="5" style="text-align: center;">NO STAFF RECORDS</td></tr>';
+                return;
+            }
+            
+            tbody.innerHTML = '';
+            appData.staff.forEach(staff => {
+                const row = document.createElement('tr');
+                row.innerHTML = `
+                    <td>${staff.id}</td>
+                    <td>${staff.name}</td>
+                    <td class="role-${staff.role.toLowerCase().replace(' ', '-').replace('prep', 'prep')}">${staff.role}</td>
+                    <td>${staff.shift}</td>
+                    <td>
+                        <button class="action-button" onclick="openStaffModal(${staff.id})">EDIT</button>
+                        <button class="action-button" onclick="deleteStaff(${staff.id})">DEL</button>
+                    </td>
+                `;
+                tbody.appendChild(row);
+            });
+        }
+        
+        // Delete staff
+        function deleteStaff(staffId) {
+            if (confirm('DELETE STAFF MEMBER?')) {
+                const staffName = appData.staff.find(s => s.id === staffId)?.name;
+                appData.staff = appData.staff.filter(s => s.id !== staffId);
+                
+                // Clear assignments
+                appData.tables.forEach(table => {
+                    if (table.host === staffName) table.host = null;
+                });
+                appData.kitchenStations.forEach(station => {
+                    if (station.assignedTo === staffName) station.assignedTo = null;
+                });
+                if (appData.greetingTask?.host === staffName) appData.greetingTask = null;
+                
+                saveData();
+                updateStaffTable();
+                updateGreetingHostSelect();
+                updateGreetingTask();
+                updateDashboard();
+                initializeTables();
+                initializeKitchenStations();
+                showNotification('STAFF DELETED');
+            }
+        }
+        
+        // Table modal
+        function openTableModal(tableId) {
+            const modal = document.getElementById('tableModal');
+            document.getElementById('tableId').value = tableId;
+            
+            const hostSelect = document.getElementById('tableHost');
+            hostSelect.innerHTML = '<option value="">-- SELECT HOST --</option>';
+            appData.staff.filter(s => s.role === 'Host').forEach(host => {
+                hostSelect.innerHTML += `<option value="${host.name}">${host.name}</option>`;
+            });
+            
+            modal.style.display = 'block';
+        }
+        
+        // Assign table
+        function assignTable(e) {
+            e.preventDefault();
+            const tableId = parseInt(document.getElementById('tableId').value);
+            const hostName = document.getElementById('tableHost').value;
+            
+            const table = appData.tables.find(t => t.id === tableId);
+            table.host = hostName;
+            
+            saveData();
+            initializeTables();
+            updateDashboard();
+            closeModal('tableModal');
+            showNotification(`TABLE ${tableId} ASSIGNED`);
+        }
+        
+        // Clear table
+        function clearTable(tableId) {
+            const table = appData.tables.find(t => t.id === tableId);
+            table.host = null;
+            
+            saveData();
+            initializeTables();
+            updateDashboard();
+            showNotification(`TABLE ${tableId} CLEARED`);
+        }
+        
+        // Kitchen modal
+        function openKitchenModal(stationId) {
+            const modal = document.getElementById('kitchenModal');
+            const station = appData.kitchenStations.find(s => s.id === stationId);
+            document.getElementById('kitchenStationName').value = station.name;
+            
+            const staffSelect = document.getElementById('kitchenStaff');
+            staffSelect.innerHTML = '<option value="">-- SELECT STAFF --</option>';
+            
+            let relevantStaff = [];
+            if (station.name.includes('Prep')) {
+                relevantStaff = appData.staff.filter(s => s.role.includes('Prep'));
+            } else if (station.name === 'Plating') {
+                relevantStaff = appData.staff.filter(s => s.role === 'Plating');
+            } else if (station.name === 'Dishwasher') {
+                relevantStaff = appData.staff.filter(s => s.role === 'Dishwasher');
+            }
+            
+            relevantStaff.forEach(staff => {
+                staffSelect.innerHTML += `<option value="${staff.name}">${staff.name}</option>`;
+            });
+            
+            modal.style.display = 'block';
+        }
+        
+        // Assign kitchen station
+        function assignKitchenStation(e) {
+            e.preventDefault();
+            const stationName = document.getElementById('kitchenStationName').value;
+            const staffName = document.getElementById('kitchenStaff').value;
+            
+            const station = appData.kitchenStations.find(s => s.name === stationName);
+            station.assignedTo = staffName;
+            
+            saveData();
+            initializeKitchenStations();
+            closeModal('kitchenModal');
+            showNotification(`${stationName} ASSIGNED`);
+        }
+        
+        // Clear kitchen station
+        function clearKitchenStation(stationId) {
+            const station = appData.kitchenStations.find(s => s.id === stationId);
+            station.assignedTo = null;
+            
+            saveData();
+            initializeKitchenStations();
+            showNotification(`${station.name} CLEARED`);
+        }
+        
+        // Update greeting host select
+        function updateGreetingHostSelect() {
+            const select = document.getElementById('greetingHostSelect');
+            select.innerHTML = '<option value="">-- SELECT --</option>';
+            appData.staff.filter(s => s.role === 'Host').forEach(host => {
+                select.innerHTML += `<option value="${host.name}">${host.name}</option>`;
+            });
+        }
+        
+        // Assign greeting task
+        function assignGreetingTask() {
+            const hostName = document.getElementById('greetingHostSelect').value;
+            
+            if (!hostName) {
+                showNotification('SELECT HOST', 'error');
+                return;
+            }
+            
+            appData.greetingTask = {
+                host: hostName,
+                time: '11:00',
+                task: 'Greeting duty'
+            };
+            
+            saveData();
+            updateGreetingTask();
+            showNotification('GREETING ASSIGNED');
+        }
+        
+        // Update greeting task
+        function updateGreetingTask() {
+            const div = document.getElementById('currentGreetingAssignment');
+            if (appData.greetingTask) {
+                div.innerHTML = `
+                    <p><strong>HOST:</strong> ${appData.greetingTask.host}</p>
+                    <p><strong>TIME:</strong> ${appData.greetingTask.time}</p>
+                    <p><strong>TASK:</strong> ${appData.greetingTask.task}</p>
+                `;
+            } else {
+                div.innerHTML = '<p>NO TASK ASSIGNED</p>';
+            }
+        }
+        
+        // Generate schedule
+        function autoGenerateSchedule() {
+            const schedule = {};
+            
+            for (let hour = 11; hour <= 23; hour++) {
+                const time = `${hour.toString().padStart(2, '0')}:00`;
+                schedule[time] = {
+                    management: null,
+                    tables1_4: null,
+                    tables5_8: null,
+                    tables9_12: null,
+                    kitchenPrep: null,
+                    prep0: null,
+                    plating: null,
+                    dishwasher: null,
+                    cashier: null
+                };
+            }
+            
+            const managers = appData.staff.filter(s => s.role === 'Manager');
+            const hosts = appData.staff.filter(s => s.role === 'Host');
+            const prepStaff = appData.staff.filter(s => s.role.includes('Prep'));
+            const platingStaff = appData.staff.filter(s => s.role === 'Plating');
+            const dishwashers = appData.staff.filter(s => s.role === 'Dishwasher');
+            const cashiers = appData.staff.filter(s => s.role === 'Cashier');
+            
+            Object.keys(schedule).forEach((time, index) => {
+                if (managers.length > 0) schedule[time].management = managers[index % managers.length].name;
+                if (hosts.length > 0) {
+                    schedule[time].tables1_4 = hosts[index % hosts.length].name;
+                    schedule[time].tables5_8 = hosts[(index + 1) % hosts.length].name;
+                    schedule[time].tables9_12 = hosts[(index + 2) % hosts.length].name;
+                }
+                if (prepStaff.length > 0) {
+                    schedule[time].kitchenPrep = prepStaff[index % prepStaff.length].name;
+                    schedule[time].prep0 = prepStaff[(index + 1) % prepStaff.length].name;
+                }
+                if (platingStaff.length > 0) schedule[time].plating = platingStaff[index % platingStaff.length].name;
+                if (dishwashers.length > 0) schedule[time].dishwasher = dishwashers[index % dishwashers.length].name;
+                if (cashiers.length > 0) schedule[time].cashier = cashiers[index % cashiers.length].name;
+            });
+            
+            appData.schedule = schedule;
+            saveData();
+            updateScheduleTable();
+            showNotification('SCHEDULE GENERATED');
+        }
+        
+        // Update schedule table
+        function updateScheduleTable() {
+            const tbody = document.getElementById('scheduleTableBody');
+            
+            if (Object.keys(appData.schedule).length === 0) {
+                tbody.innerHTML = '<tr><td colspan="10" style="text-align: center;">NO SCHEDULE DATA</td></tr>';
+                return;
+            }
+            
+            tbody.innerHTML = '';
+            Object.keys(appData.schedule).forEach(time => {
+                const slot = appData.schedule[time];
+                const row = document.createElement('tr');
+                row.innerHTML = `
+                    <td>${time}</td>
+                    <td>${slot.management || '-'}</td>
+                    <td>${slot.tables1_4 || '-'}</td>
+                    <td>${slot.tables5_8 || '-'}</td>
+                    <td>${slot.tables9_12 || '-'}</td>
+                    <td>${slot.kitchenPrep || '-'}</td>
+                    <td>${slot.prep0 || '-'}</td>
+                    <td>${slot.plating || '-'}</td>
+                    <td>${slot.dishwasher || '-'}</td>
+                    <td>${slot.cashier || '-'}</td>
+                `;
+                tbody.appendChild(row);
+            });
+        }
+        
+        // Update dashboard
+        function updateDashboard() {
+            document.getElementById('dashboardStaffCount').textContent = appData.staff.length;
+            
+            const assignedTables = appData.tables.filter(t => t.host).length;
+            document.getElementById('dashboardTablesAssigned').textContent = `${assignedTables}/12`;
+            
+            const now = new Date();
+            const shiftStatus = (now.getHours() >= 11 && now.getHours() < 23) ? 'ACTIVE' : 'OFFLINE';
+            document.getElementById('dashboardShiftStatus').textContent = shiftStatus;
+            
+            const tbody = document.getElementById('dashboardHostAssignmentsBody');
+            const hostAssignments = {};
+            
+            appData.tables.forEach(table => {
+                if (table.host) {
+                    if (!hostAssignments[table.host]) hostAssignments[table.host] = [];
+                    hostAssignments[table.host].push(table.id);
+                }
+            });
+            
+            if (Object.keys(hostAssignments).length === 0) {
+                tbody.innerHTML = '<tr><td colspan="2" style="text-align: center;">NO DATA</td></tr>';
+            } else {
+                tbody.innerHTML = '';
+                Object.keys(hostAssignments).forEach(host => {
+                    const row = document.createElement('tr');
+                    row.innerHTML = `
+                        <td>${host}</td>
+                        <td>${hostAssignments[host].join(', ')}</td>
+                    `;
+                    tbody.appendChild(row);
+                });
+            }
+        }
+        
+        // Export to PDF
+        function exportToPdf() {
+            const { jsPDF } = window.jspdf;
+            const doc = new jsPDF();
+            
+            doc.setFontSize(16);
+            doc.text('WRONGSIDE STAFF TERMINAL - REPORT', 10, 10);
+            
+            doc.setFontSize(10);
+            doc.text(`Generated: ${new Date().toLocaleString()}`, 10, 20);
+            
+            doc.setFontSize(14);
+            doc.text('STAFF LIST', 10, 30);
+            doc.setFontSize(10);
+            
+            let y = 40;
+            appData.staff.forEach(staff => {
+                doc.text(`${staff.id}. ${staff.name} - ${staff.role} (${staff.shift})`, 10, y);
+                y += 10;
+            });
+            
+            y += 10;
+            doc.setFontSize(14);
+            doc.text('TABLE ASSIGNMENTS', 10, y);
+            doc.setFontSize(10);
+            y += 10;
+            
+            appData.tables.forEach(table => {
+                doc.text(`Table ${table.id}: ${table.host || 'UNASSIGNED'}`, 10, y);
+                y += 10;
+            });
+            
+            doc.save('staff_report.pdf');
+            showNotification('PDF EXPORTED');
+        }
+        
+        // Export to JSON
+        function exportToJson() {
+            const dataStr = JSON.stringify(appData, null, 2);
+            const dataUri = 'data:application/json;charset=utf-8,' + encodeURIComponent(dataStr);
+            
+            const link = document.createElement('a');
+            link.setAttribute('href', dataUri);
+            link.setAttribute('download', 'staff_data.json');
+            link.click();
+            
+            showNotification('JSON EXPORTED');
+        }
+        
+        // Import from JSON
+        function importFromJson(file) {
+            if (!file) return;
+            
+            const reader = new FileReader();
+            reader.onload = function(e) {
+                try {
+                    appData = JSON.parse(e.target.result);
+                    saveData();
+                    
+                    updateDashboard();
+                    updateStaffTable();
+                    updateScheduleTable();
+                    updateGreetingTask();
+                    updateGreetingHostSelect();
+                    initializeTables();
+                    initializeKitchenStations();
+                    
+                    showNotification('DATA IMPORTED');
+                } catch (error) {
+                    showNotification('IMPORT ERROR', 'error');
+                }
+            };
+            reader.readAsText(file);
+        }
+        
+        // Close modal
+        function closeModal(modalId) {
+            document.getElementById(modalId).style.display = 'none';
+        }
+        
+        // Save data
+        function saveData() {
+            localStorage.setItem('wrongSideStaffData', JSON.stringify(appData));
+        }
+        
+        // Load data
+        function loadData() {
+            const saved = localStorage.getItem('wrongSideStaffData');
+            if (saved) appData = JSON.parse(saved);
+        }
+        
+        // Show notification
+        function showNotification(message, type = 'success') {
+            const notification = document.createElement('div');
+            notification.className = 'notification';
+            notification.textContent = message;
+            
+            if (type === 'error') {
+                notification.style.borderColor = 'var(--terminal-red)';
+                notification.style.color = 'var(--terminal-red)';
+            }
+            
+            document.body.appendChild(notification);
+            
+            setTimeout(() => {
+                notification.remove();
+            }, 3000);
+        }
+    </script>
+</body>
+</html>
